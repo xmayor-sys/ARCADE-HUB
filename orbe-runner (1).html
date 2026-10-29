@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orbe Runner 3D</title>
+<style>
+:root{--bg:#dff1ff;--fg:#10223a;--panel:rgba(255,255,255,.82);--accent:#ff7a1a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1626;--fg:#e8f1ff;--panel:rgba(16,28,48,.82)}}
+:root[data-theme="dark"]{--bg:#0d1626;--fg:#e8f1ff;--panel:rgba(16,28,48,.82)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;left:12px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.chip{background:var(--panel);padding:6px 12px;border-radius:999px;font-weight:600;font-size:15px;backdrop-filter:blur(6px)}
+#dash{width:90px;height:8px;background:var(--panel);border-radius:6px;overflow:hidden;align-self:center}
+#dashf{height:100%;width:100%;background:var(--accent)}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+#box{background:var(--panel);padding:26px 30px;border-radius:18px;max-width:380px;text-align:center;backdrop-filter:blur(8px)}
+#box h1{margin:0 0 8px;font-size:28px}
+#box p{margin:6px 0;font-size:14px;line-height:1.5}
+button{margin-top:12px;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 22px;font-size:16px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div class="chip" id="hl"></div><div class="chip" id="hc"></div><div class="chip" id="hn"></div><div class="chip" id="hs"></div><div id="dash"><div id="dashf"></div></div></div>
+<div id="ov"><div id="box">
+<h1 id="t">🔶 Orbe Runner</h1>
+<p id="m">Salta entre islas flotantes, recoge monedas y llega al portal.</p>
+<p><b>WASD / flechas</b> mover · <b>Espacio</b> saltar (doble salto)<br><b>Shift</b> dash · <b>Arrastra el ratón</b> o <b>Q/E</b> girar cámara</p>
+<p>🟢 Pads = super salto · 🔴 Pisa enemigos desde arriba · 🟣 Plataformas móviles · 🔥 No caigas a la lava</p>
+<button id="go">Jugar</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('c');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;
+const S=new THREE.Scene();S.background=new THREE.Color(0x7ec8ff);S.fog=new THREE.Fog(0x7ec8ff,30,120);
+const cam=new THREE.PerspectiveCamera(65,1,.1,300);
+function rs(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',rs);rs();
+S.add(new THREE.HemisphereLight(0xffffff,0x446688,.8));
+const sun=new THREE.DirectionalLight(0xffffff,.9);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);const sc=sun.shadow.camera;sc.left=sc.bottom=-30;sc.right=sc.top=30;sc.far=80;
+S.add(sun,sun.target);
+const lava=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshStandardMaterial({color:0xff3b00,emissive:0xff2200,emissiveIntensity:.8}));
+lava.rotation.x=-Math.PI/2;lava.position.y=-14;S.add(lava);
+
+// Jugador
+const PR=.5;
+const pm=new THREE.Mesh(new THREE.SphereGeometry(PR,24,16),new THREE.MeshStandardMaterial({color:0xffa024,roughness:.35,metalness:.2}));
+pm.castShadow=true;S.add(pm);
+pm.add(new THREE.Mesh(new THREE.BoxGeometry(.35,.12,.12),new THREE.MeshBasicMaterial({color:0x222222})).translateZ(-.46).translateY(.1));
+const P={p:new THREE.Vector3(),v:new THREE.Vector3(),ground:null,jumps:0,dash:0,dashCd:0,inv:0};
+let lvl=null,plats=[],coins=[],enemies=[],pads=[],portal=null,parts=[];
+let state='menu',level=1,lives=3,coinsN=0,score=0,t=0,yaw=0,coyote=0;
+const keys={};
+
+// Audio
+let AC;function beep(f,d=.1,ty='square',v=.05){try{AC=AC||new AudioContext();const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+
+function addPlat(x,top,z,w,d,col,mv){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,1,d),new THREE.MeshStandardMaterial({color:col,roughness:.8}));
+ m.castShadow=m.receiveShadow=true;lvl.add(m);
+ const o={m,pos:new THREE.Vector3(x,top-.5,z),prev:new THREE.Vector3(x,top-.5,z),hx:w/2,hy:.5,hz:d/2,mv,delta:new THREE.Vector3()};
+ m.position.copy(o.pos);plats.push(o);return o;
+}
+function addCoin(pl,oy){
+ const m=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.1,16),new THREE.MeshStandardMaterial({color:0xffd400,emissive:0x886600,metalness:.6,roughness:.3}));
+ m.rotation.x=Math.PI/2;const g=new THREE.Group();g.add(m);lvl.add(g);coins.push({g,pl,oy,on:true});
+}
+function buildLevel(){
+ if(lvl)S.remove(lvl);lvl=new THREE.Group();S.add(lvl);
+ plats=[];coins=[];enemies=[];pads=[];
+ const first=addPlat(0,0,0,8,8,0x4caf50);
+ let x=0,y=0,z=0,pd=8;const n=6+level*2;
+ for(let i=1;i<=n;i++){
+  const last=i===n,w=last?7:3+Math.random()*2.5,d=last?7:3+Math.random()*2.5;
+  const gap=Math.min(1.4+Math.random()*(1.4+level*.3),4.2);
+  z-=pd/2+gap+d/2;x+=(Math.random()-.5)*6;y=Math.max(-2,Math.min(8,y+(Math.random()-.4)*1.6));pd=d;
+  const moving=!last&&Math.random()<.15+level*.05;
+  const col=moving?0x9b59d0:last?0x2196f3:0x6d8bb8+Math.floor(Math.random()*40);
+  const pl=addPlat(x,y,z,w,d,col,moving?{base:x,amp:2.5+Math.random()*1.5,sp:.8+Math.random()*.6,ph:Math.random()*6}:null);
+  addCoin(pl,new THREE.Vector3(0,1.3,0));
+  if(!moving&&!last&&Math.random()<.14){
+   const pm2=new THREE.Mesh(new THREE.CylinderGeometry(.8,.9,.2,20),new THREE.MeshStandardMaterial({color:0x2ee66b,emissive:0x0a8a30}));
+   lvl.add(pm2);pads.push({m:pm2,pl,o:new THREE.Vector3(0,.6,0)});addCoin(pl,new THREE.Vector3(0,5,0));
+  }else if(!moving&&!last&&level>=2&&w>4&&Math.random()<.35){
+   const em=new THREE.Mesh(new THREE.IcosahedronGeometry(.55,1),new THREE.MeshStandardMaterial({color:0xe02020,flatShading:true,emissive:0x440000}));
+   em.castShadow=true;lvl.add(em);enemies.push({m:em,pl,amp:w/2-.8,sp:1+Math.random()*1.2,ph:Math.random()*6,alive:true,p:new THREE.Vector3()});
+  }
+  if(last){
+   portal=new THREE.Mesh(new THREE.TorusGeometry(1.2,.22,12,32),new THREE.MeshStandardMaterial({color:0x00e5ff,emissive:0x0090aa}));
+   portal.position.set(x,y+2,z);lvl.add(portal);
+  }
+ }
+ respawn();
+}
+function respawn(){P.p.set(0,1.2,0);P.v.set(0,0,0);P.ground=null;P.jumps=0}
+
+// Partículas
+function burst(pos,col,n=10){
+ for(let i=0;i<n;i++){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(.09,6,6),new THREE.MeshBasicMaterial({color:col}));
+  m.position.copy(pos);S.add(m);
+  parts.push({m,v:new THREE.Vector3((Math.random()-.5)*6,Math.random()*5,(Math.random()-.5)*6),l:.7});
+ }
+}
+
+function hud(){
+ $('hl').textContent='❤️'.repeat(Math.max(lives,0));$('hc').textContent='🪙 '+coinsN;
+ $('hn').textContent='Nivel '+level;$('hs').textContent='⭐ '+score;
+ $('dashf').style.width=(100-Math.min(100,P.dashCd/1.4*100))+'%';
+}
+function hurt(dir){
+ if(P.inv>0)return;lives--;P.inv=1.6;beep(120,.3,'sawtooth',.08);
+ P.v.x=dir.x*9;P.v.z=dir.z*9;P.v.y=8;burst(P.p,0xff3030,14);
+ if(lives<=0)end();
+}
+function end(){state='over';$('t').textContent='💀 Game Over';$('m').textContent='Llegaste al nivel '+level+' con '+score+' puntos.';$('go').textContent='Reintentar';$('ov').style.display='flex'}
+function start(){level=1;lives=3;coinsN=0;score=0;buildLevel();state='play';$('ov').style.display='none'}
+$('go').onclick=start;
+
+// Input
+addEventListener('keydown',e=>{keys[e.code]=true;
+ if(state!=='play')return;
+ if(e.code==='Space'){e.preventDefault();jump()}
+ if(e.code==='ShiftLeft'||e.code==='ShiftRight')dash()});
+addEventListener('keyup',e=>keys[e.code]=false);
+let drag=false,lx=0;
+cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX});
+addEventListener('pointerup',()=>drag=false);
+addEventListener('pointermove',e=>{if(drag){yaw-=(e.clientX-lx)*.006;lx=e.clientX}});
+function jump(){
+ if(coyote>0){P.v.y=11;coyote=0;P.jumps=1;beep(500,.12)}
+ else if(P.jumps<2){P.v.y=10;P.jumps=2;beep(700,.12);burst(P.p,0xffffff,6)}
+}
+function dash(){
+ if(P.dashCd>0)return;
+ let dx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),dz=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
+ if(!dx&&!dz)dz=-1;
+ const l=Math.hypot(dx,dz),s=Math.sin(yaw),c=Math.cos(yaw);dx/=l;dz/=l;
+ P.v.x=(dx*c+dz*s)*20;P.v.z=(-dx*s+dz*c)*20;P.v.y=Math.max(P.v.y,2);
+ P.dash=.2;P.dashCd=1.4;beep(300,.15,'sawtooth');burst(P.p,0xffa024,8);
+}
+
+function step(dt){
+ t+=dt;
+ if(keys.KeyQ||keys.ArrowLeft&&false)yaw+=dt*1.8;if(keys.KeyE)yaw-=dt*1.8;
+ // plataformas
+ for(const o of plats){
+  o.prev.copy(o.pos);
+  if(o.mv)o.pos.x=o.mv.base+Math.sin(t*o.mv.sp+o.mv.ph)*o.mv.amp;
+  o.delta.subVectors(o.pos,o.prev);o.m.position.copy(o.pos);
+ }
+ if(P.ground)P.p.add(P.ground.delta);
+ // movimiento
+ const ix=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),iz=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
+ const s=Math.sin(yaw),c=Math.cos(yaw);
+ const tx=(ix*c+iz*s)*9,tz=(-ix*s+iz*c)*9;
+ P.dash=Math.max(0,P.dash-dt);P.dashCd=Math.max(0,P.dashCd-dt);P.inv=Math.max(0,P.inv-dt);
+ if(P.dash<=0){const a=Math.min(1,(P.ground?12:4)*dt);
+  if(ix||iz){P.v.x+=(tx-P.v.x)*a;P.v.z+=(tz-P.v.z)*a}
+  else if(P.ground){const f=Math.exp(-9*dt);P.v.x*=f;P.v.z*=f}
+  P.v.y-=28*dt;
+ }else P.v.y-=6*dt;
+ P.p.addScaledVector(P.v,dt);
+ // colisiones esfera-caja
+ let g=null;
+ for(const o of plats){
+  const cx=Math.max(o.pos.x-o.hx,Math.min(P.p.x,o.pos.x+o.hx)),cy=Math.max(o.pos.y-o.hy,Math.min(P.p.y,o.pos.y+o.hy)),cz=Math.max(o.pos.z-o.hz,Math.min(P.p.z,o.pos.z+o.hz));
+  const dx=P.p.x-cx,dy=P.p.y-cy,dz=P.p.z-cz,d2=dx*dx+dy*dy+dz*dz;
+  if(d2<PR*PR){
+   if(d2>1e-8){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d,nz=dz/d,pen=PR-d;
+    P.p.x+=nx*pen;P.p.y+=ny*pen;P.p.z+=nz*pen;
+    const vn=P.v.x*nx+P.v.y*ny+P.v.z*nz;
+    if(vn<0){P.v.x-=nx*vn;P.v.y-=ny*vn;P.v.z-=nz*vn}
+    if(ny>.6)g=o;
+   }else{P.p.y=o.pos.y+o.hy+PR;P.v.y=Math.max(0,P.v.y);g=o}
+  }
+ }
+ if(g&&!P.ground&&P.v.y<=0.1)burst(P.p.clone().setY(P.p.y-.4),0xcccccc,4);
+ P.ground=g;if(g){coyote=.12;P.jumps=0}else coyote-=dt;
+ if(keys.Space&&false)jump();
+ // pads
+ for(const b of pads){
+  const wp=b.pl.pos.clone().add(b.o);b.m.position.copy(wp);
+  if(Math.abs(P.p.x-wp.x)<.9&&Math.abs(P.p.z-wp.z)<.9&&P.p.y<wp.y+PR+.3&&P.v.y<=0){P.v.y=21;P.jumps=1;coyote=0;beep(880,.2,'sine',.08);burst(wp,0x2ee66b,10)}
+ }
+ // monedas
+ for(const k of coins){
+  if(!k.on)continue;
+  k.g.position.copy(k.pl.pos).add(k.oy);k.g.position.y+=Math.sin(t*3+k.oy.x)*.12;k.g.rotation.y=t*3;
+  if(k.g.position.distanceTo(P.p)<1){k.on=false;k.g.visible=false;coinsN++;score+=10;beep(1000,.1,'sine',.07);burst(k.g.position,0xffd400,8);
+   if(coinsN%20===0){lives=Math.min(lives+1,5);beep(1300,.3,'sine',.08)}}
+ }
+ // enemigos
+ for(const e of enemies){
+  if(!e.alive)continue;
+  e.p.copy(e.pl.pos);e.p.y+=1.05;e.p.x+=Math.sin(t*e.sp+e.ph)*e.amp;e.m.position.copy(e.p);e.m.rotation.y=t*2;e.m.rotation.x=t;
+  const d=e.p.distanceTo(P.p);
+  if(d<PR+.55){
+   if(P.v.y<-1&&P.p.y>e.p.y+.2){e.alive=false;e.m.visible=false;P.v.y=11;P.jumps=1;score+=50;beep(200,.2,'square',.08);burst(e.p,0xe02020,16)}
+   else hurt(new THREE.Vector3().subVectors(P.p,e.p).setY(0).normalize());
+  }
+ }
+ // portal
+ portal.rotation.y=t;portal.rotation.x=t*.5;
+ if(portal.position.distanceTo(P.p)<1.7){level++;score+=100*level;beep(600,.3,'sine',.08);beep(900,.4,'sine',.08);burst(P.p,0x00e5ff,24);buildLevel()}
+ // lava
+ if(P.p.y<-12){lives--;beep(90,.4,'sawtooth',.08);if(lives<=0)end();else{respawn();P.inv=1.5}}
+ // visual
+ pm.position.copy(P.p);pm.rotation.x+=P.v.z*dt/PR;pm.rotation.z-=P.v.x*dt/PR;
+ pm.visible=P.inv<=0||Math.floor(t*14)%2===0;
+ // partículas
+ for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.l-=dt;q.v.y-=14*dt;q.m.position.addScaledVector(q.v,dt);q.m.scale.setScalar(Math.max(q.l,.01)/.7);
+  if(q.l<=0){S.remove(q.m);parts.splice(i,1)}}
+}
+
+const cp=new THREE.Vector3();let last=performance.now();
+function loop(now){
+ requestAnimationFrame(loop);
+ const dt=Math.min((now-last)/1000,.05);last=now;
+ if(state==='play'){step(dt/2);step(dt/2);hud()}
+ // cámara
+ const dist=9;cp.set(P.p.x+Math.sin(yaw)*dist,P.p.y+5.5,P.p.z+Math.cos(yaw)*dist);
+ cam.position.lerp(cp,Math.min(1,6*dt+.02));cam.lookAt(P.p.x,P.p.y+.5,P.p.z);
+ sun.position.set(P.p.x+12,P.p.y+25,P.p.z+8);sun.target.position.copy(P.p);
+ lava.position.x=P.p.x;lava.position.z=P.p.z;
+ R.render(S,cam);
+}
+buildLevel();hud();requestAnimationFrame(loop);
+</script>
+</body>
+</html>

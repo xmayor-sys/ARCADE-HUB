@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Snake</title>
+
+<link rel="icon" type="image/png" href="snake-icono.png" />
+<link rel="apple-touch-icon" href="snake-icono.png" />
+<meta name="theme-color" content="#4CAF50" />
+<style>
+  body {
+    margin: 0;
+    background: #000;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    user-select: none;
+    overflow: hidden;
+  }
+  canvas {
+    background: #111;
+    display: block;
+    margin: 10px auto;
+    border: 2px solid #333;
+    transition: transform 0.5s ease-in-out, filter 0.5s ease-in-out;
+  }
+  #info,
+  #powerupInfo {
+    margin-top: 8px;
+    font-size: 14px;
+    text-align: center;
+    height: 24px;
+    min-height: 24px;
+  }
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    z-index: 10000;
+  }
+  .overlay h2 {
+    margin-top: 0;
+  }
+  #skinList {
+    list-style: none;
+    padding: 0;
+    width: 100%;
+    max-width: 400px;
+  }
+  #skinList li {
+    margin: 8px 0;
+    padding: 10px;
+    background: #222;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    cursor: default;
+    transition: background 0.3s;
+  }
+  #skinList li:hover {
+    background: #444;
+  }
+  .skin-info {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+  }
+  button.skin-action-btn {
+    padding: 6px 12px;
+    background: #007bff;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    min-width: 90px;
+    font-weight: 600;
+    font-size: 14px;
+    user-select: none;
+    transition: background-color 0.3s ease;
+  }
+  button.skin-action-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+  }
+  button.skin-action-btn:disabled {
+    background: #555;
+    cursor: default;
+  }
+  #btnCloseStore {
+    margin-top: 20px;
+    padding: 8px 16px;
+    background: #cc0000;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+    align-self: center;
+    font-weight: bold;
+    font-size: 18px;
+    width: 180px;
+    text-shadow: 0 0 4px black;
+    z-index: 11000;
+    transition: background-color 0.3s ease;
+  }
+  #btnCloseStore:hover {
+    background: #aa0000;
+  }
+  #btnResetCheats {
+    margin-top: 15px;
+    padding: 12px 28px;
+    font-size: 18px;
+    font-weight: bold;
+    background-color: #ffaa00;
+    color: black;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    width: 240px;
+    align-self: center;
+    box-shadow: 0 0 12px #ffaa00;
+    transition: background-color 0.3s;
+    z-index: 11001;
+  }
+  #btnResetCheats:hover {
+    background-color: #ffbb33;
+  }
+  #startOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: linear-gradient(135deg, #1a1a1a, #0d0d0d);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    z-index: 10000;
+  }
+  #startOverlay > * {
+    flex-shrink: 0;
+  }
+  #userArea {
+    width: 320px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  #userIcon {
+    font-size: 32px;
+    margin-right: 10px;
+    user-select: none;
+  }
+  #nicknameInput {
+    flex-grow: 1;
+    padding: 8px 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+  }
+  #cheatArea {
+    margin-top: 10px;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #cheatArea label {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 4px;
+  }
+  #cheatInput {
+    padding: 8px 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+  }
+  #btnCheat {
+    padding: 10px 24px;
+    background: #ff5722;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.3s;
+    width: 100%;
+  }
+  #btnCheat:hover {
+    background: #e64a19;
+  }
+  #startOverlay h1 {
+    font-size: clamp(40px, 8vh, 72px);
+    margin: 0 0 10px 0;
+    font-weight: 900;
+    letter-spacing: 8px;
+    color: #4caf50;
+    text-shadow: 0 0 10px #4caf50;
+  }
+  #startOverlay p {
+    font-size: 20px;
+    margin: 6px 0;
+    text-align: center;
+  }
+  #startOverlay button.controlBtn {
+    margin: 10px 0;
+    padding: 14px 36px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s;
+    width: 320px;
+    max-width: 90vw;
+  }
+  #btnStart {
+    background: #4caf50;
+    color: white;
+  }
+  #btnStart:hover {
+    background: #66bb6a;
+  }
+  #btnStore {
+    background: #2196f3;
+    color: white;
+  }
+  #btnStore:hover {
+    background: #42a5f5;
+  }
+  #btnEvents {
+    background: #9c27b0;
+    color: white;
+  }
+  #btnEvents:hover {
+      background: #ab47bc;
+  }
+  #btnHelp {
+      background: #e91e63;
+      color: white;
+  }
+  #btnHelp:hover {
+      background: #ec407a;
+  }
+  #btnGameModes {
+    background: orange;
+    color: white;
+  }
+  #btnGameModes:hover {
+    background: #ff9800;
+  }
+  #goldDisplayStart {
+    font-size: 18px;
+    margin-top: 10px;
+    color: #ffc107;
+    font-weight: 600;
+    text-shadow: 0 0 6px #ffc107;
+  }
+  #speedIndicator {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    background: rgba(20, 20, 20, 0.8);
+    padding: 6px 12px;
+    border-radius: 12px;
+    user-select: none;
+    z-index: 20000;
+    display: none;
+  }
+  #currentSkinDisplay {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 16px;
+    background: rgba(20, 20, 20, 0.8);
+    padding: 6px 12px;
+    border-radius: 12px;
+    user-select: none;
+    white-space: nowrap;
+    z-index: 20000;
+  }
+  #btnPause {
+    position: absolute;
+    top: 36px;
+    right: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 8px;
+    background-color: #ff9800;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    z-index: 20000;
+    transition: background-color 0.3s ease;
+  }
+  #btnPause:hover {
+    background-color: #fb8c00;
+  }
+  #btnBackToStart {
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 8px;
+    background-color: #f44336;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    z-index: 20000;
+    transition: background-color 0.3s ease;
+    display: none;
+  }
+  #btnBackToStart:hover {
+    background-color: #d32f2f;
+  }
+  #modeOverlay ul, #difficultyOverlay ul, #appleCountOverlay ul {
+    list-style: none;
+    padding: 0;
+    width: 100%;
+    max-width: 400px;
+  }
+  #modeOverlay li, #difficultyOverlay li, #appleCountOverlay li {
+    margin: 8px 0;
+    padding: 10px;
+    background: #222;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  #modeOverlay li:hover, #difficultyOverlay li:hover, #appleCountOverlay li:hover {
+    background: #444;
+  }
+  .close-btn {
+    margin-top: 20px;
+    padding: 8px 16px;
+    background: #cc6600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+  }
+  #congratulationsOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+  }
+  #congratulationsOverlay h1 {
+    font-size: 48px;
+    color: #4caf50;
+    text-shadow: 0 0 10px #4caf50;
+    font-weight: 900;
+    letter-spacing: 8px;
+  }
+  #congratulationsOverlay p {
+    font-size: 24px;
+    margin: 20px 0;
+    text-align: center;
+  }
+  .continue-btn {
+    padding: 12px 28px;
+    font-size: 20px;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  }
+  .continue-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  }
+  #btnContinue {
+    background: linear-gradient(45deg, #28a745, #218838);
+  }
+  #btnContinueLoss {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+  }
+  #lossOverlay, #banOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    color: red;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+    z-index: 20000;
+  }
+  #lossOverlay h1, #banOverlay h1 {
+    font-size: 48px;
+    color: red;
+    text-shadow: 0 0 10px red;
+    font-weight: 900;
+    letter-spacing: 8px;
+  }
+  #helpContent {
+      text-align: left;
+      max-width: 600px;
+  }
+  #helpContent h3 {
+      color: #ffc107;
+  }
+  .footer-info {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #aaa;
+  }
+  #konamiStatus {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: #00ff00;
+    padding: 20px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    z-index: 30000;
+    display: none;
+    border: 2px solid #00ff00;
+  }
+  #glitchOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    color: red;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50000;
+    font-size: 48px;
+    text-align: center;
+    font-weight: bold;
+    text-shadow: 0 0 10px red;
+    white-space: pre;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden;
+  }
+  .fake-window {
+      position: fixed;
+      background: #222;
+      border: 2px solid #555;
+      color: white;
+      padding: 10px;
+      box-shadow: 0 0 20px black;
+      z-index: 60000;
+      width: 300px;
+      height: 200px;
+  }
+</style>
+</head>
+<body>
+
+<div id="startOverlay" style="display:flex; flex-direction: column; align-items:center;">
+  <div id="userArea">
+    <div id="userIcon" title="Usuario">👤</div>
+    <input id="nicknameInput" type="text" placeholder="Introduce tu nickname" maxlength="15" autocomplete="off" />
+  </div>
+  <h1>SNAKE</h1>
+  <div id="cheatArea">
+    <label for="cheatInput">Código Administrador</label>
+    <input id="cheatInput" type="text" placeholder="Introduce código de trucos" autocomplete="off" />
+    <button id="btnCheat" type="button">Activar Código</button>
+  </div>
+  <button id="btnStart" class="controlBtn" type="button">Iniciar Juego</button>
+  <button id="btnStore" class="controlBtn" type="button">Abrir Tienda</button>
+  <button id="btnGameModes" class="controlBtn" type="button">Modos de Juego</button>
+  <button id="btnEvents" class="controlBtn" type="button">Eventos</button>
+  <button id="btnHelp" class="controlBtn" type="button">Cómo Jugar y Preguntas</button>
+  <div id="goldDisplayStart">Oro acumulado: 0</div>
+</div>
+
+<canvas id="gameCanvas" style="display:none"></canvas>
+<button id="btnBackToStart" type="button" style="display:none;">Volver al inicio</button>
+<button id="btnPause" type="button" style="display:none;">Pausar</button>
+<div id="speedIndicator" style="display:none;">Velocidad: 5 (Teclas + / -)</div>
+<div id="currentSkinDisplay" style="display:none;">Skin: Clásico</div>
+<div id="info"></div>
+<div id="powerupInfo"></div>
+<div id="konamiStatus">Código en progreso...<br><span id="konamiProgress"></span></div>
+
+<div id="storeOverlay" class="overlay" style="display:none; justify-content:space-between;">
+  <h2>Tienda de Skins</h2>
+  <ul id="skinList"></ul>
+  <button id="btnCloseStore" type="button" style="position: relative; top: -10px;">Cerrar Tienda</button>
+</div>
+
+<div id="modeOverlay" class="overlay" style="display:none;">
+  <h2>Modos de Juego</h2>
+  <ul id="modeList"></ul>
+  <button id="btnCloseMode" class="close-btn" type="button">Cerrar</button>
+</div>
+
+<div id="difficultyOverlay" class="overlay" style="display:none;">
+  <h2>Elige la Dificultad</h2>
+  <ul id="difficultyList"></ul>
+</div>
+
+<div id="appleCountOverlay" class="overlay" style="display:none;">
+    <h2>Elige el Número de Manzanas</h2>
+    <ul id="appleCountList"></ul>
+</div>
+
+<div id="helpOverlay" class="overlay" style="display:none;">
+    <h2>Cómo Jugar y Preguntas Frecuentes</h2>
+    <div id="helpContent">
+        <h3>Controles</h3>
+        <p>- <strong>Mover Serpiente:</strong> Usa las flechas de dirección (↑, ↓, ←, →).</p>
+        <p>- <strong>Pausa:</strong> Pulsa la tecla 'K' para pausar o reanudar la partida.</p>
+        <p>- <strong>Velocidad:</strong> Ajusta la velocidad con las teclas '+' y '-' (excepto en modos Difícil y Extremo).</p>
+        <h3>Sanciones</h3>
+        <p>Introducir códigos de trucos incorrectos puede llevar a sanciones. Tras 4 intentos fallidos, tu cuenta será restringida. Si esto ocurre, existe un último recurso para recuperarla.</p>
+        <button id="btnResetCheats" type="button" title="Restablece solo los códigos (no sanciones)">Resetear Códigos</button>
+        <div class="footer-info">
+            <p>Made by Xabier Mayor Artetxe</p>
+            <p>Contáctanos: <a href="mailto:x.mayor@ikasle.eus" style="color: #ffc107;">x.mayor@ikasle.eus</a></p>
+        </div>
+    </div>
+    <button id="btnCloseHelp" class="close-btn" type="button">Cerrar</button>
+</div>
+
+<div id="congratulationsOverlay">
+  <h1>¡Felicidades!</h1>
+  <p>Has llenado todo el mapa con tu serpiente.</p>
+  <p>Te hemos otorgado 50 de oro.</p>
+  <button id="btnContinue" class="continue-btn">Continuar</button>
+</div>
+
+<div id="lossOverlay">
+  <h1>¡Has Perdido!</h1>
+  <p>Tu puntaje fue: <span id="finalScore"></span></p>
+  <button id="btnContinueLoss" class="continue-btn">Continuar</button>
+</div>
+
+<div id="banOverlay">
+    <h1>CUENTA RESTRINGIDA</h1>
+    <p>Has introducido demasiados códigos incorrectos.</p>
+    <p id="banMessage">Introduce el Código secreto para tener una última oportunidad.</p>
+</div>
+
+<div id="glitchOverlay"></div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let gridSize = 20;
+  let tileCount = 20;
+
+  let snake, apples, vx, vy, score, gold, highScore, gameRunning;
+  let snake1, snake2, vx1, vy1, vx2, vy2, score1, score2;
+  
+  let speed = 5;
+  let tickInterval = null;
+  let isPaused = false;
+  let gameMode = 'classic';
+  let walls = [];
+  let invincible = false;
+  let movementFrozen = false;
+  let realGold = 0;
+  let speedLocked = false;
+  let isBanned = false;
+  let isAwaitingPerdon = false;
+  let perdonTimer = null;
+  let dizzyInterval = null;
+
+  let doubleHeadActive = false, doubleGrowActive = false, x10GrowActive = false, winCheatActive = false;
+
+  const startOverlay = document.getElementById('startOverlay');
+  const nicknameInput = document.getElementById('nicknameInput');
+  const cheatInput = document.getElementById('cheatInput');
+  const btnCheat = document.getElementById('btnCheat');
+  const goldDisplayStart = document.getElementById('goldDisplayStart');
+  const speedIndicator = document.getElementById('speedIndicator');
+  const currentSkinDisplay = document.getElementById('currentSkinDisplay');
+  const storeOverlay = document.getElementById('storeOverlay');
+  const skinList = document.getElementById('skinList');
+  const btnCloseStore = document.getElementById('btnCloseStore');
+  const btnResetCheats = document.getElementById('btnResetCheats');
+  const btnStart = document.getElementById('btnStart');
+  const btnStore = document.getElementById('btnStore');
+  const btnHelp = document.getElementById('btnHelp');
+  const btnGameModes = document.getElementById('btnGameModes');
+  const modeOverlay = document.getElementById('modeOverlay');
+  const modeList = document.getElementById('modeList');
+  const btnCloseMode = document.getElementById('btnCloseMode');
+  const difficultyOverlay = document.getElementById('difficultyOverlay');
+  const difficultyList = document.getElementById('difficultyList');
+  const appleCountOverlay = document.getElementById('appleCountOverlay');
+  const appleCountList = document.getElementById('appleCountList');
+  const helpOverlay = document.getElementById('helpOverlay');
+  const btnCloseHelp = document.getElementById('btnCloseHelp');
+  const info = document.getElementById('info');
+  const powerupInfo = document.getElementById('powerupInfo');
+  const btnBackToStart = document.getElementById('btnBackToStart');
+  const btnPause = document.getElementById('btnPause');
+  const congratulationsOverlay = document.getElementById('congratulationsOverlay');
+  const btnContinue = document.getElementById('btnContinue');
+  const lossOverlay = document.getElementById('lossOverlay');
+  const finalScoreDisplay = document.getElementById('finalScore');
+  const btnContinueLoss = document.getElementById('btnContinueLoss');
+  const banOverlay = document.getElementById('banOverlay');
+  const banMessage = document.getElementById('banMessage');
+  const glitchOverlay = document.getElementById('glitchOverlay');
+  const konamiStatus = document.getElementById('konamiStatus');
+  const konamiProgress = document.getElementById('konamiProgress');
+
+  let selectedSkin, nickname, unlockedSkinsGlobal = {};
+  
+  const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA', 'Enter'];
+  let konamiIndex = 0;
+  let konamiTimeout = null;
+  let audioCtx = null;
+
+  const skins = {
+    default: { name: 'Clásico', price: 0, color:'#0f0' },
+    sandia: { name: 'Sandía 🍉', price: 30, color: '#32CD32' },
+    naranja: { name: 'Naranja 🍊', price: 50, color: 'orange' },
+    sizechange: { name: 'Cambia Tamaño 📏', price: 80, color: '#0f0' },
+    spiderman: { name: 'Spiderman 🕷️', price: 100, color: ['red','blue'] },
+    rainbow: { name: 'Cola Arcoíris 🌈', price: 120 },
+    candy: { name: 'Dulce 🍭', price: 130, color: '#ff69b4' },
+    metal: { name: 'Metal ⚙️', price: 140, color: '#999999' },
+    forest: { name: 'Bosque 🌳', price: 140, color: '#228B22' },
+    invisible: { name: 'Invisible 🐍', price: 150, color: null },
+    ocean: { name: 'Océano 🌊', price: 150, color: '#1E90FF' },
+    ice: { name: 'Hielo ❄️', price: 160, color: '#00ffff' },
+    toxic: { name: 'Tóxico ☣️', price: 170, color: '#7FFF00' },
+    lava: { name: 'Lava 🔥', price: 180, color: '#ff4500' },
+    neon: { name: 'Neón 💡', price: 190, color: '#39ff14' },
+    glitch: { name: 'Efecto Glitch 👾', price: 200 },
+    shadow: { name: 'Sombra 🌑', price: 210, color: '#222222' },
+    galaxy: { name: 'Galaxia 🌌', price: 220, color: ['#551A8B', '#00FFFF'] },
+    gold: { name: 'Oro 💰', price: 300, color: '#FFD700' }
+  };
+
+  const STORAGE_GOLD = 'snake_gold';
+  const STORAGE_HIGHSCORE = 'snake_highscore';
+  const STORAGE_SKINS = 'snake_skins';
+  const STORAGE_SELECTED_SKIN = 'snake_selected_skin';
+  const STORAGE_LAST_MODE = 'snake_last_mode';
+  const STORAGE_NICKNAME = 'snake_nickname';
+  const STORAGE_INVINCIBLE = 'snake_invincible';
+  const STORAGE_INFINITYGOLD = 'snake_infinity_gold';
+  const STORAGE_DOUBLE_HEAD = 'snake_double_head';
+  const STORAGE_DOUBLE_GROW = 'snake_double_grow';
+  const STORAGE_X10_GROW = 'snake_x10_grow';
+  const STORAGE_WIN_CHEAT = 'snake_win_cheat';
+  const PUNISH_COUNT_KEY = 'snake_punish_count';
+  const BANNED_KEY = 'snake_banned';
+  const PERMA_BANNED_KEY = 'snake_perma_banned';
+
+  function checkForBan() {
+      if (localStorage.getItem(PERMA_BANNED_KEY) === 'true') {
+          startOverlay.style.display = 'none';
+          glitchOverlay.innerHTML = 'TE HEMOS AVISADO<br>YA NO VAS A JUGAR<br>';
+          glitchOverlay.style.display = 'flex';
+          return true;
+      }
+      if (localStorage.getItem(BANNED_KEY) === 'true') {
+          isBanned = true;
+          startOverlay.style.display = 'none';
+          banOverlay.style.display = 'flex';
+          return true;
+      }
+      return false;
+  }
+
+  function initFromStorage(){
+    realGold = parseInt(localStorage.getItem(STORAGE_GOLD)) || 0;
+    highScore = parseInt(localStorage.getItem(STORAGE_HIGHSCORE)) || 0;
+    
+    try {
+      unlockedSkinsGlobal = JSON.parse(localStorage.getItem(STORAGE_SKINS)) || { default: true };
+    } catch(e) {
+      unlockedSkinsGlobal = { default: true };
+    }
+    
+    selectedSkin = localStorage.getItem(STORAGE_SELECTED_SKIN) || 'default';
+    gameMode = localStorage.getItem(STORAGE_LAST_MODE) || 'classic';
+    nickname = localStorage.getItem(STORAGE_NICKNAME) || '';
+    
+    if (localStorage.getItem(STORAGE_INFINITYGOLD) === 'true') {
+        gold = Number.MAX_SAFE_INTEGER;
+    } else {
+        gold = realGold;
+    }
+    
+    invincible = localStorage.getItem(STORAGE_INVINCIBLE) === 'true';
+    doubleHeadActive = localStorage.getItem(STORAGE_DOUBLE_HEAD) === 'true';
+    doubleGrowActive = localStorage.getItem(STORAGE_DOUBLE_GROW) === 'true';
+    x10GrowActive = localStorage.getItem(STORAGE_X10_GROW) === 'true';
+    winCheatActive = localStorage.getItem(STORAGE_WIN_CHEAT) === 'true';
+    
+    const punishCount = parseInt(localStorage.getItem(PUNISH_COUNT_KEY)) || 0;
+    if (punishCount >= 3 && punishCount < 4) {
+      movementFrozen = true;
+      info.textContent = "Movimiento bloqueado.";
+    }
+
+    nicknameInput.value = nickname;
+    updateDisplays();
+  }
+
+  function updateDisplays(){
+    goldDisplayStart.textContent = `Oro acumulado: ${gold >= 1e9 ? '∞' : gold}`;
+    currentSkinDisplay.textContent = `Skin: ${skins[selectedSkin]?.name || 'Clásico'}`;
+  }
+
+  function checkWinCondition(){
+    if (gameMode !== '1vs1' && snake.length >= tileCount * tileCount) {
+      realGold += 50;
+      if (gold !== Number.MAX_SAFE_INTEGER) {
+          gold = realGold;
+      }
+      localStorage.setItem(STORAGE_GOLD, realGold.toString());
+      updateDisplays();
+      gameRunning = false;
+      clearInterval(tickInterval);
+      congratulationsOverlay.style.display = 'flex';
+    }
+  }
+
+  function endGame1vs1(winner){
+    gameRunning = false;
+    clearInterval(tickInterval);
+    alert(`${winner} gana la partida 1vs1!`);
+    showStartScreen();
+  }
+
+  function populateStore() {
+    skinList.innerHTML = '';
+    const sortedSkins = Object.keys(skins).sort((a,b) => skins[a].price - skins[b].price);
+
+    sortedSkins.forEach(key => {
+      const skin = skins[key];
+      const li = document.createElement('li');
+      const skinInfoSpan = document.createElement('span');
+      skinInfoSpan.classList.add('skin-info');
+      skinInfoSpan.textContent = `${skin.name} (${skin.price} Oro)`;
+      const btn = document.createElement('button');
+      btn.classList.add('skin-action-btn');
+
+      const isUnlocked = !!unlockedSkinsGlobal[key];
+      const isSelected = (key === selectedSkin);
+
+      if(isUnlocked){
+        if(isSelected){
+          btn.textContent = 'Seleccionada';
+          btn.disabled = true;
+        } else {
+          btn.textContent = 'Seleccionar';
+          btn.onclick = () => {
+            selectedSkin = key;
+            localStorage.setItem(STORAGE_SELECTED_SKIN, selectedSkin);
+            updateDisplays();
+            closeStore();
+          };
+        }
+      } else {
+        btn.textContent = `Comprar`;
+        btn.disabled = gold < skin.price;
+        btn.onclick = () => {
+          if(gold >= skin.price){
+            if (gold !== Number.MAX_SAFE_INTEGER) {
+                realGold -= skin.price;
+                gold = realGold;
+                localStorage.setItem(STORAGE_GOLD, realGold.toString());
+            }
+            unlockedSkinsGlobal[key] = true;
+            localStorage.setItem(STORAGE_SKINS, JSON.stringify(unlockedSkinsGlobal));
+            info.textContent = `Has comprado la skin '${skin.name}'!`;
+            updateDisplays();
+            populateStore();
+          }
+        };
+      }
+      li.appendChild(skinInfoSpan);
+      li.appendChild(btn);
+      skinList.appendChild(li);
+    });
+  }
+
+  function openStore() { storeOverlay.style.display = 'flex'; }
+  function closeStore() { storeOverlay.style.display = 'none'; }
+  
+  function showStartScreen() {
+      window.location.reload();
+  }
+
+  function resetAllCheats() {
+    localStorage.removeItem(STORAGE_INFINITYGOLD);
+    localStorage.setItem(STORAGE_INVINCIBLE, 'false');
+    localStorage.setItem(STORAGE_DOUBLE_HEAD, 'false');
+    localStorage.setItem(STORAGE_DOUBLE_GROW, 'false');
+    localStorage.setItem(STORAGE_X10_GROW, 'false');
+    localStorage.setItem(STORAGE_WIN_CHEAT, 'false');
+    
+    invincible = false;
+    doubleHeadActive = false;
+    doubleGrowActive = false;
+    x10GrowActive = false;
+    winCheatActive = false;
+    
+    let savedGold = parseInt(localStorage.getItem(STORAGE_GOLD)) || 0;
+    realGold = savedGold;
+    gold = savedGold;
+    updateDisplays();
+  }
+
+  function updateKonamiProgress() {
+    let progressText = '';
+    for (let i = 0; i < konamiIndex; i++) {
+        progressText += `* `;
+    }
+    konamiProgress.innerHTML = progressText;
+  }
+
+  function showKonamiStatus() {
+    konamiStatus.style.display = 'block';
+    updateKonamiProgress();
+    
+    if (konamiTimeout) clearTimeout(konamiTimeout);
+    konamiTimeout = setTimeout(() => {
+      konamiStatus.style.display = 'none';
+      konamiIndex = 0;
+    }, 3000);
+  }
+
+  btnResetCheats.addEventListener('click', () => {
+    if (!confirm("¿Seguro que quieres resetear los trucos? Esto no afectará tus sanciones.")) return;
+    resetAllCheats();
+    info.textContent = "Trucos reseteados.";
+  });
+  
+  btnStart.addEventListener('click', () => {
+    if (gameMode === '1vs1') {
+      showDifficultyScreen();
+    } else {
+      showDifficultyScreen();
+    }
+  });
+
+  btnStore.addEventListener('click', () => { populateStore(); openStore(); });
+  btnCloseStore.addEventListener('click', closeStore);
+  btnBackToStart.addEventListener('click', showStartScreen);
+  btnHelp.addEventListener('click', () => helpOverlay.style.display = 'flex');
+  btnCloseHelp.addEventListener('click', () => helpOverlay.style.display = 'none');
+  
+  function togglePause() {
+      if (!gameRunning || movementFrozen) return;
+      isPaused = !isPaused;
+      if (isPaused) {
+          clearInterval(tickInterval);
+          btnPause.textContent = 'Reanudar';
+          info.textContent = '¡Juego pausado!';
+      } else {
+          resetInterval();
+          btnPause.textContent = 'Pausar';
+          info.textContent = '';
+      }
+  }
+
+  btnPause.addEventListener('click', togglePause);
+  btnGameModes.addEventListener('click', () => { populateModes(); modeOverlay.style.display = 'flex'; });
+  btnCloseMode.addEventListener('click', () => { modeOverlay.style.display = 'none'; });
+  btnContinue.addEventListener('click', showStartScreen);
+  btnContinueLoss.addEventListener('click', showStartScreen);
+
+  document.addEventListener('keydown', e => {
+    if (isBanned) {
+        const requiredKey = konamiCode[konamiIndex];
+        if (e.code === requiredKey) {
+            konamiIndex++;
+            showKonamiStatus();
+            
+            if (konamiIndex === konamiCode.length) {
+                konamiStatus.style.display = 'none';
+                konamiIndex = 0;
+                
+                isBanned = false;
+                localStorage.removeItem(BANNED_KEY);
+                banOverlay.style.display = 'none';
+                
+                isAwaitingPerdon = true;
+                localStorage.setItem('awaiting_perdon_check', 'true');
+                
+                startDizzyMode();
+            }
+        } else if (e.code.startsWith('Arrow') || e.code === 'KeyB' || e.code === 'KeyA' || e.code === 'Enter') {
+            konamiIndex = 0;
+            updateKonamiProgress();
+        }
+        e.preventDefault();
+        return;
+    }
+  
+    if (e.code === 'Space' && !gameRunning && startOverlay.style.display === 'none') {
+        showStartScreen();
+        e.preventDefault();
+        return;
+    }
+    
+    if (e.key.toLowerCase() === 'k') {
+        togglePause();
+    }
+    
+    if (!speedLocked) {
+        if (e.key === '+' || e.key === '=') {
+          if (speed < 100) { speed++; if(gameRunning && !isPaused) resetInterval(); }
+          e.preventDefault();
+        } else if (e.key === '-' || e.key === '_') {
+          if (speed > 1) { speed--; if(gameRunning && !isPaused) resetInterval(); }
+          e.preventDefault();
+        }
+    }
+    
+    if (!gameRunning || isPaused || movementFrozen) return;
+
+    if (gameMode === '1vs1') {
+      if (e.key === 'ArrowUp' && vy1 !== 1) { vx1 = 0; vy1 = -1; }
+      else if (e.key === 'ArrowDown' && vy1 !== -1) { vx1 = 0; vy1 = 1; }
+      else if (e.key === 'ArrowLeft' && vx1 !== 1) { vx1 = -1; vy1 = 0; }
+      else if (e.key === 'ArrowRight' && vx1 !== -1) { vx1 = 1; vy1 = 0; }
+      else if (e.key.toLowerCase() === 'w' && vy2 !== 1) { vx2 = 0; vy2 = -1; }
+      else if (e.key.toLowerCase() === 's' && vy2 !== -1) { vx2 = 0; vy2 = 1; }
+      else if (e.key.toLowerCase() === 'a' && vx2 !== 1) { vx2 = -1; vy2 = 0; }
+      else if (e.key.toLowerCase() === 'd' && vx2 !== -1) { vx2 = 1; vy2 = 0; }
+    } else {
+      if (e.key === 'ArrowUp' && vy !== 1) { vx = 0; vy = -1; }
+      else if (e.key === 'ArrowDown' && vy !== -1) { vx = 0; vy = 1; }
+      else if (e.key === 'ArrowLeft' && vx !== 1) { vx = -1; vy = 0; }
+      else if (e.key === 'ArrowRight' && vx !== -1) { vx = 1; vy = 0; }
+    }
+  });
+
+  btnCheat.addEventListener('click', () => {
+    let code = cheatInput.value.trim();
+    if (code) processCheatCode(code);
+    cheatInput.value = '';
+  });
+
+  nicknameInput.addEventListener('blur', () => {
+    nickname = nicknameInput.value.trim().substring(0, 15);
+    localStorage.setItem(STORAGE_NICKNAME, nickname);
+  });
+  nicknameInput.addEventListener('keydown', e => { if(e.key === "Enter") { nicknameInput.blur(); btnStart.focus(); } });
+  
+  function showDifficultyScreen() {
+      difficultyOverlay.style.display = 'flex';
+      difficultyList.innerHTML = '';
+      const difficulties = [
+          { name: 'Fácil', speed: 5, lock: false, size: 15 },
+          { name: 'Medio', speed: 8, lock: false, size: 20 },
+          { name: 'Difícil', speed: 12, lock: true, size: 25 },
+          { name: 'Extremo', speed: 17, lock: true, size: 30 }
+      ];
+      difficulties.forEach(diff => {
+          const li = document.createElement('li');
+          li.textContent = diff.name;
+          li.onclick = () => {
+              speed = diff.speed;
+              speedLocked = diff.lock;
+              tileCount = diff.size;
+              canvas.width = canvas.height = tileCount * gridSize;
+              difficultyOverlay.style.display = 'none';
+              
+              if (gameMode === '1vs1') {
+                  initGame(5);
+              } else {
+                  showAppleCountScreen();
+              }
+          };
+          difficultyList.appendChild(li);
+      });
+  }
+
+  function showAppleCountScreen() {
+      appleCountOverlay.style.display = 'flex';
+      appleCountList.innerHTML = '';
+      const appleOptions = [1, 2, 3, 4];
+      appleOptions.forEach(count => {
+          const li = document.createElement('li');
+          li.textContent = `${count} Manzana${count > 1 ? 's' : ''}`;
+          li.onclick = () => {
+              appleCountOverlay.style.display = 'none';
+              initGame(count);
+          };
+          appleCountList.appendChild(li);
+      });
+  }
+
+  function playSound(type, freq, duration) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + duration);
+  }
+  
+  async function triggerGlitchAndPermaBan() {
+      if (dizzyInterval) clearInterval(dizzyInterval);
+      canvas.style.transform = 'none';
+      canvas.style.filter = 'none';
+      document.body.innerHTML = '';
+      document.body.appendChild(glitchOverlay);
+      glitchOverlay.style.display = 'flex';
+      
+      const wait = ms => new Promise(res => setTimeout(res, ms));
+
+      playSound('sawtooth', 100, 1.5);
+      await wait(1500);
+
+      const moth = `
+      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣴⣶⣾⣿⠟⠻⣿⣷⣶⣦⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⢀⠀⠈⢻⣿⣿⣿⡇⠀⠀⢸⣿⣿⣿⡟⠁⠀⡀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢠⣿⣷⣦⣄⣙⣿⣿⣧⠀⠀⣼⣿⣿⣋⣠⣴⣾⣿⡄⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢸⣿⣿⡿⠟⠛⠛⠿⣿⣷⣾⣿⠿⠛⠛⠻⢿⣿⣿⡇⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢸⣿⣇⣴⠶⠛⠻⠶⣄⣿⣿⣠⠶⠟⠛⠶⣦⣸⣿⡇⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⣿⡟⠀⣰⣾⣶⡀⠘⣿⣿⠃⢀⣶⣷⣆⠀⢻⣿⠁⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢀⣾⣧⠈⠹⢿⠿⠁⢠⣿⣿⡄⠈⠿⡿⠏⠁⣼⣷⡀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠸⣿⣿⣷⣦⣤⣤⣶⡟⢸⡇⢻⣶⣤⣤⣴⣾⣿⣿⠇⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣤⠼⠧⣤⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠈⣿⣧⣈⣉⣉⣤⣴⣦⣤⣉⣉⣁⣼⣿⠁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⠛⠙⠋⠙⠋⠙⠋⠙⠋⠛⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⣿⣼⣧⣼⣧⣼⣧⣼⣧⣿⣿⡏⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠘⠻⣿⣿⣿⣿⠋⠙⣿⣿⣿⣿⠟⠃⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠁⠀⠀⠈⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+      `;
+      glitchOverlay.textContent = moth;
+      playSound('square', 150, 2);
+      await wait(3000);
+      glitchOverlay.textContent = '';
+      
+      for(let i=0; i<5; i++){
+          const fakeWin = document.createElement('div');
+          fakeWin.className = 'fake-window';
+          fakeWin.innerHTML = `<h3>ERROR ${Math.floor(Math.random() * 999)}</h3><p>system32.dll no encontrado</p>`;
+          fakeWin.style.left = `${Math.random() * 70}vw`;
+          fakeWin.style.top = `${Math.random() * 60}vh`;
+          document.body.appendChild(fakeWin);
+          playSound('sine', 400 + i * 50, 0.2);
+          await wait(300);
+      }
+      await wait(1000);
+      document.querySelectorAll('.fake-window').forEach(w => w.remove());
+
+      const cam = document.createElement('div');
+      cam.className = 'fake-window';
+      cam.style.width = '400px';
+      cam.style.height = '300px';
+      cam.style.left = 'calc(50vw - 200px)';
+      cam.style.top = 'calc(50vh - 150px)';
+      cam.style.background = '#111';
+      cam.innerHTML = '<h3 style="color: #555;">CAMERA DETECTED</h3><p style="text-align:center; font-size: 80px;"></p>';
+      document.body.appendChild(cam);
+      playSound('noise', 0, 1);
+      await wait(2000);
+      cam.remove();
+
+      let text = 'TE HEMOS AVISADO\nYA NO VAS A JUGAR\n.';
+      let typedText = '';
+      for(const char of text){
+          typedText += char;
+          glitchOverlay.textContent = typedText;
+          playSound('sine', 800 + Math.random() * 200, 0.05);
+          await wait(100);
+      }
+  }
+
+  function startDizzyMode() {
+      alert("CÓDIGO ACEPTADO. Tienes 20 segundos para introducir el código 'perdon' en el menú de trucos. Date prisa.");
+      
+      initGame(1);
+      isAwaitingPerdon = true;
+      
+      cheatInput.style.display = 'block';
+      btnCheat.style.display = 'block';
+      
+      dizzyInterval = setInterval(() => {
+          const rotation = (Math.random() - 0.5) * 20; // -10 to +10 degrees
+          const hue = Math.random() * 120; // green to yellow to red-ish
+          canvas.style.transform = `rotate(${rotation}deg)`;
+          canvas.style.filter = `hue-rotate(${hue}deg)`;
+      }, 700);
+      
+      perdonTimer = setTimeout(() => {
+          if (isAwaitingPerdon) {
+             isAwaitingPerdon = false;
+             localStorage.setItem(PERMA_BANNED_KEY, 'true');
+             triggerGlitchAndPermaBan();
+          }
+      }, 20000);
+  }
+
+  function initGame(appleCount = 1) {
+    if (movementFrozen) {
+        alert("No puedes jugar, tu movimiento está bloqueado por la sanción 3.");
+        return;
+    }
+    gameRunning = true;
+    isPaused = false;
+    walls = [];
+    apples = [];
+    clearInterval(tickInterval);
+    updateSpeedIndicator();
+    info.textContent = isAwaitingPerdon ? 'Introduce "perdon" rápido...' : '';
+    
+    startOverlay.style.display = 'none';
+    banOverlay.style.display = 'none';
+    canvas.style.display = 'block';
+    speedIndicator.style.display = 'block';
+    currentSkinDisplay.style.display = 'block';
+    btnBackToStart.style.display = 'block';
+    btnPause.style.display = 'block';
+    btnPause.textContent = 'Pausar';
+
+    if (gameMode === '1vs1') {
+      snake1 = [{ x: Math.floor(tileCount / 4), y: Math.floor(tileCount / 2) }];
+      snake2 = [{ x: Math.floor(tileCount * 3 / 4), y: Math.floor(tileCount / 2) }];
+      vx1 = 1; vy1 = 0;
+      vx2 = -1; vy2 = 0;
+      score1 = 0; score2 = 0;
+      placeApples1vs1(appleCount);
+    } else {
+      snake = [{ x: Math.floor(tileCount / 2), y: Math.floor(tileCount / 2) }];
+      vx = 1; vy = 0;
+      score = 0;
+      placeApples(appleCount);
+    }
+    
+    resetInterval();
+  }
+
+  function resetInterval(){
+    if (tickInterval) clearInterval(tickInterval);
+    tickInterval = setInterval(gameTick, 1000 / speed);
+    updateSpeedIndicator();
+  }
+
+  function updateSpeedIndicator(){
+    speedIndicator.textContent = `Velocidad: ${speed}` + (speedLocked ? ' (Bloqueada)' : ' (+/-)');
+  }
+
+  function endGame(){
+    if (isAwaitingPerdon) return; // Don't show regular loss screen in dizzy mode
+    gameRunning = false;
+    clearInterval(tickInterval);
+    finalScoreDisplay.textContent = score;
+    lossOverlay.style.display = 'flex';
+  }
+
+  function placeApples(count) {
+    for(let i=0; i<count; i++){
+      let nx, ny;
+      do {
+        nx = Math.floor(Math.random()*tileCount);
+        ny = Math.floor(Math.random()*tileCount);
+      } while (snake.some(s=>s.x===nx&&s.y===ny) || apples.some(a=>a.x===nx&&a.y===ny));
+      apples.push({x:nx, y:ny});
+    }
+  }
+
+  function placeApples1vs1(count){
+    for(let i=0; i<count; i++){
+      let nx, ny;
+      do {
+        nx = Math.floor(Math.random()*tileCount);
+        ny = Math.floor(Math.random()*tileCount);
+      } while (snake1.some(s=>s.x===nx&&s.y===ny) || snake2.some(s=>s.x===nx&&s.y===ny) || apples.some(a=>a.x===nx&&a.y===ny));
+      apples.push({x:nx, y:ny});
+    }
+  }
+
+  function drawSnakeHead(x, y, color, direction) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x * gridSize + gridSize / 2, y * gridSize + gridSize / 2, gridSize / 2, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.stroke();
+
+    ctx.fillStyle = 'white';
+    if (direction.x === 1) {
+        ctx.fillRect(x * gridSize + 12, y * gridSize + 4, 3, 3);
+        ctx.fillRect(x * gridSize + 12, y * gridSize + 13, 3, 3);
+    } else if (direction.x === -1) {
+        ctx.fillRect(x * gridSize + 5, y * gridSize + 4, 3, 3);
+        ctx.fillRect(x * gridSize + 5, y * gridSize + 13, 3, 3);
+    } else if (direction.y === 1) {
+        ctx.fillRect(x * gridSize + 4, y * gridSize + 12, 3, 3);
+        ctx.fillRect(x * gridSize + 13, y * gridSize + 12, 3, 3);
+    } else {
+        ctx.fillRect(x * gridSize + 4, y * gridSize + 5, 3, 3);
+        ctx.fillRect(x * gridSize + 13, y * gridSize + 5, 3, 3);
+    }
+    
+    ctx.fillStyle = 'red';
+    if (direction.x === 1) ctx.fillRect(x * gridSize + 20, y * gridSize + 8, 4, 4);
+    else if (direction.x === -1) ctx.fillRect(x * gridSize - 4, y * gridSize + 8, 4, 4);
+    else if (direction.y === 1) ctx.fillRect(x * gridSize + 8, y * gridSize + 20, 4, 4);
+    else ctx.fillRect(x * gridSize + 8, y * gridSize - 4, 4, 4);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "red";
+    apples.forEach(apple => ctx.fillRect(apple.x * gridSize, apple.y * gridSize, gridSize, gridSize));
+
+    if (gameMode === 'chaos') {
+      ctx.fillStyle = '#654321';
+      walls.forEach(wall => ctx.fillRect(wall.x * gridSize, wall.y * gridSize, gridSize, gridSize));
+    }
+    
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = 1;
+
+    if (gameMode === '1vs1') {
+        snake1.forEach((seg, i) => {
+            if (i === 0) {
+                drawSnakeHead(seg.x, seg.y, '#00ff00', {x: vx1, y: vy1});
+            } else {
+                ctx.fillStyle = '#009900';
+                ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize, gridSize);
+                ctx.strokeRect(seg.x * gridSize, seg.y * gridSize, gridSize, gridSize);
+            }
+        });
+        snake2.forEach((seg, i) => {
+            if (i === 0) {
+                drawSnakeHead(seg.x, seg.y, '#ff4444', {x: vx2, y: vy2});
+            } else {
+                ctx.fillStyle = '#aa0000';
+                ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize, gridSize);
+                ctx.strokeRect(seg.x * gridSize, seg.y * gridSize, gridSize, gridSize);
+            }
+        });
+        ctx.fillStyle = 'white';
+        ctx.font = '16px monospace';
+        ctx.fillText(`Jugador1: ${score1}`, 10, 20);
+        ctx.fillText(`Jugador2: ${score2}`, canvas.width - 130, 20);
+    } else {
+      snake.forEach((seg, i) => {
+        let fillColor = skins[selectedSkin]?.color || '#0f0';
+
+        if (selectedSkin === 'invisible' && i !== 0) return;
+
+        let handled = false;
+        ctx.save();
+        switch(selectedSkin) {
+            case 'neon':
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = fillColor;
+                break;
+            case 'glitch':
+                fillColor = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
+                ctx.globalAlpha = 0.8 + Math.random() * 0.2;
+                break;
+             case 'lava':
+                const lavaColors = ['#ff4500', '#ff8c00', '#ff6347', '#ffA500'];
+                fillColor = lavaColors[(i + Math.floor(Date.now() / 100)) % lavaColors.length];
+                break;
+            case 'toxic':
+                 const toxicColors = ['#7FFF00', '#00FF00', '#ADFF2F', '#32CD32'];
+                 fillColor = toxicColors[(i + Math.floor(Date.now() / 100)) % toxicColors.length];
+                 break;
+            case 'rainbow':
+                fillColor = `hsl(${(i * 20 + Date.now() / 10) % 360}, 100%, 60%)`;
+                break;
+            case 'spiderman':
+                fillColor = (i % 2 === 0) ? skins.spiderman.color[0] : skins.spiderman.color[1];
+                break;
+            case 'galaxy':
+                const galaxyColors = ['#551A8B', '#00FFFF', '#4B0082', '#FFFFFF'];
+                fillColor = galaxyColors[(i + Math.floor(Date.now() / 200)) % galaxyColors.length];
+                break;
+        }
+
+        if (i === 0) {
+            drawSnakeHead(seg.x, seg.y, fillColor, {x: vx, y: vy});
+        } else {
+            ctx.fillStyle = fillColor;
+            if (selectedSkin === 'invisible') ctx.fillStyle = 'rgba(0,255,0,0.4)';
+            
+            let x = seg.x * gridSize, y = seg.y * gridSize, w = gridSize, h = gridSize;
+
+            if (selectedSkin === 'sizechange') {
+                const sizeFactor = 0.8 + Math.abs(Math.sin(i * 0.4 + Date.now() / 200)) * 0.4;
+                w = h = gridSize * sizeFactor;
+                x += (gridSize - w) / 2;
+                y += (gridSize - h) / 2;
+            } else if (selectedSkin === 'glitch') {
+                x += (Math.random() - 0.5) * 6;
+                y += (Math.random() - 0.5) * 6;
+            } else if (selectedSkin === 'metal') {
+                const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
+                gradient.addColorStop(0, '#888');
+                gradient.addColorStop(0.5, '#ddd');
+                gradient.addColorStop(1, '#888');
+                ctx.fillStyle = gradient;
+            } else if (selectedSkin === 'ice') {
+                 const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
+                 gradient.addColorStop(0, '#00ffff');
+                 gradient.addColorStop(0.5, '#e0ffff');
+                 gradient.addColorStop(1, '#00ffff');
+                 ctx.fillStyle = gradient;
+            }
+
+            if (selectedSkin === 'shadow') {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(x + 3, y + 3, w, h);
+                ctx.fillStyle = skins.shadow.color;
+            }
+
+            ctx.fillRect(x, y, w, h);
+
+            if (selectedSkin === 'galaxy') {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                for(let k=0; k<2; k++) {
+                    ctx.fillRect(x + Math.random() * w, y + Math.random() * h, 1, 1);
+                }
+            }
+
+            ctx.strokeRect(seg.x * gridSize, seg.y * gridSize, gridSize, gridSize);
+        }
+        ctx.restore();
+      });
+      
+      ctx.fillStyle = 'white';
+      ctx.font = '16px monospace';
+      ctx.fillText(`Puntaje: ${score}`, 10, 20);
+      ctx.fillText(`Oro: ${gold >= 1e9 ? '∞' : gold}`, 10, 40);
+      ctx.fillText(`High Score: ${highScore}`, 10, 60);
+    }
+  }
+
+  function gameTick() {
+    if (!gameRunning || isPaused || movementFrozen) return;
+
+    if (gameMode === '1vs1') {
+        let head1 = { x: snake1[0].x + vx1, y: snake1[0].y + vy1 };
+        let head2 = { x: snake2[0].x + vx2, y: snake2[0].y + vy2 };
+        
+        if (head1.x < 0 || head1.x >= tileCount || head1.y < 0 || head1.y >= tileCount) { endGame1vs1('Jugador 2'); return; }
+        if (head2.x < 0 || head2.x >= tileCount || head2.y < 0 || head2.y >= tileCount) { endGame1vs1('Jugador 1'); return; }
+
+        if (snake1.some(seg => seg.x === head1.x && seg.y === head1.y) || snake2.some(seg => seg.x === head1.x && seg.y === head1.y)) { endGame1vs1('Jugador 2'); return; }
+        if (snake2.some(seg => seg.x === head2.x && seg.y === head2.y) || snake1.some(seg => seg.x === head2.x && seg.y === head2.y)) { endGame1vs1('Jugador 1'); return; }
+
+        snake1.unshift(head1);
+        snake2.unshift(head2);
+        
+        let ateApple1 = apples.findIndex(a => a.x === head1.x && a.y === head1.y);
+        if (ateApple1 > -1) { score1++; apples.splice(ateApple1, 1); placeApples1vs1(1); } else { snake1.pop(); }
+
+        let ateApple2 = apples.findIndex(a => a.x === head2.x && a.y === head2.y);
+        if (ateApple2 > -1) { score2++; apples.splice(ateApple2, 1); placeApples1vs1(1); } else { snake2.pop(); }
+    } else {
+        let head = { x: snake[0].x + vx, y: snake[0].y + vy };
+
+        if (invincible) {
+            if (head.x < 0) head.x = tileCount - 1; else if (head.x >= tileCount) head.x = 0;
+            if (head.y < 0) head.y = tileCount - 1; else if (head.y >= tileCount) head.y = 0;
+        } else {
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount ||
+                (snake.length > 1 && snake.slice(1).some(seg => seg.x === head.x && seg.y === head.y)) ||
+                walls.some(w => w.x === head.x && w.y === head.y)) {
+                endGame(); return;
+            }
+        }
+        snake.unshift(head);
+        
+        let ateAppleIndex = apples.findIndex(a => a.x === head.x && a.y === head.y);
+        if (ateAppleIndex >= 0) {
+            eatApple(ateAppleIndex);
+            checkWinCondition();
+        } else {
+            snake.pop();
+        }
+    }
+    draw();
+  }
+
+  function processCheatCode(code) {
+    const plainCode = code.trim().toLowerCase();
+    
+    // Encoded cheat codes using btoa() in browser console.
+    const encodedCodes = {
+      "aW5maW5pdG8gb3Jv": "Oro infinito activado: ¡todas las skins son gratis!",
+      "aW52ZW5jaWJsZQ==": "Modo invencible activado: ¡atraviesa paredes y a ti mismo!",
+      "cGVyZG9u": "Sanciones eliminadas. ¡Puedes volver a jugar sin restricciones!",
+      "Y2FiZXph": "Modo doble cabeza activado (próximamente).",
+      "eDI=": "Crecimiento x2 activado: ¡creces el doble con cada manzana!",
+      "eDEw": "Crecimiento x10 activado: ¡creces diez veces más rápido!",
+      "Z2FuYXI=": "¡Come una manzana para crecer hasta casi ganar!"
+    };
+
+    const encodedPlainCode = btoa(plainCode);
+
+    if (encodedCodes[encodedPlainCode]) {
+        switch(plainCode) {
+            case atob("aW5maW5pdG8gb3Jv"): // infinito oro
+                gold = Number.MAX_SAFE_INTEGER; 
+                localStorage.setItem(STORAGE_INFINITYGOLD, 'true'); 
+                break;
+            case atob("aW52ZW5jaWJsZQ=="): // invencible
+                invincible = true; 
+                localStorage.setItem(STORAGE_INVINCIBLE, 'true'); 
+                break;
+            case atob("cGVyZG9u"): // perdon
+                if (isAwaitingPerdon) {
+                    clearTimeout(perdonTimer);
+                    clearInterval(dizzyInterval);
+                    canvas.style.transform = 'none';
+                    canvas.style.filter = 'none';
+                    isAwaitingPerdon = false;
+                    localStorage.removeItem('awaiting_perdon_check');
+                    localStorage.removeItem(PUNISH_COUNT_KEY);
+                    if(realGold < 0) realGold = 0;
+                    gold = realGold;
+                    localStorage.setItem(STORAGE_GOLD, realGold.toString());
+                    unlockedSkinsGlobal = { default: true };
+                    localStorage.setItem(STORAGE_SKINS, JSON.stringify(unlockedSkinsGlobal));
+                    movementFrozen = false;
+                    resetAllCheats();
+                    alert("¡PERDÓN CONCEDIDO! Todas las sanciones han sido eliminadas. ¡Juega con responsabilidad!");
+                    showStartScreen();
+                } else {
+                    alert("Este código no tiene efecto en este momento.");
+                }
+                return; // Return to avoid double alert
+            case atob("eDI="): // x2
+                doubleGrowActive = true; 
+                localStorage.setItem(STORAGE_DOUBLE_GROW, 'true'); 
+                break;
+            case atob("eDEw"): // x10
+                x10GrowActive = true; 
+                localStorage.setItem(STORAGE_X10_GROW, 'true'); 
+                break;
+            case atob("Z2FuYXI="): // ganar
+                winCheatActive = true; 
+                localStorage.setItem(STORAGE_WIN_CHEAT, 'true'); 
+                break;
+        }
+        alert(`Código '${plainCode}' activado: ${encodedCodes[encodedPlainCode]}`);
+    } else {
+      if (confirm("El código introducido no es válido. Intentar usar códigos desconocidos se considera suplantación de identidad y puede resultar en sanciones. ¿Quieres continuar?")) {
+        let punishCount = (parseInt(localStorage.getItem(PUNISH_COUNT_KEY)) || 0) + 1;
+        localStorage.setItem(PUNISH_COUNT_KEY, punishCount);
+        if (punishCount === 1) {
+            realGold = -5000;
+            gold = realGold;
+            localStorage.setItem(STORAGE_GOLD, realGold.toString());
+            alert("Sanción 1: Tu oro ha sido establecido en -5000.");
+        } else if (punishCount === 2) {
+            unlockedSkinsGlobal = { default: true };
+            localStorage.setItem(STORAGE_SKINS, JSON.stringify(unlockedSkinsGlobal));
+            alert("Sanción 2: Todas tus skins han sido eliminadas.");
+        } else if (punishCount === 3) {
+            movementFrozen = true;
+            info.textContent = "Movimiento bloqueado.";
+            alert("Sanción 3: Tu serpiente ha sido bloqueada. Ya no puedes jugar.");
+        } else if (punishCount >= 4) {
+            localStorage.setItem(BANNED_KEY, 'true');
+            checkForBan();
+        }
+      }
+    }
+    updateDisplays();
+  }
+
+  function populateModes() {
+    modeList.innerHTML = '';
+    const modes = [
+      {key:'classic', name:'Clásico'},
+      {key:'chaos', name:'Caos con Paredes'},
+      {key:'1vs1', name:'1 vs 1 - Combate'}
+    ];
+    modes.forEach(mode => {
+      const li = document.createElement('li');
+      li.textContent = mode.name;
+      li.dataset.modeKey = mode.key;
+      li.addEventListener('click', () => {
+        gameMode = mode.key;
+        localStorage.setItem(STORAGE_LAST_MODE, gameMode);
+        modeOverlay.style.display = 'none';
+      });
+      modeList.appendChild(li);
+    });
+  }
+
+  function eatApple(index){
+    score++;
+    realGold++;
+    if (gold !== Number.MAX_SAFE_INTEGER) {
+        gold = realGold;
+    }
+    if (score > highScore) highScore = score;
+    
+    localStorage.setItem(STORAGE_GOLD, realGold.toString());
+    localStorage.setItem(STORAGE_HIGHSCORE, highScore.toString());
+
+    apples.splice(index, 1);
+    placeApples(1);
+
+    const growTarget = winCheatActive ? (tileCount * tileCount - snake.length - 2) : (x10GrowActive ? 9 : (doubleGrowActive ? 1 : 0));
+    for(let i=0; i<growTarget; i++){
+        if (snake.length < tileCount * tileCount) {
+           snake.push({ ...snake[snake.length - 1] });
+        }
+    }
+    
+    if (gameMode === 'chaos') {
+      let nx, ny;
+      do {
+        nx = Math.floor(Math.random() * tileCount);
+        ny = Math.floor(Math.random() * tileCount);
+      } while (snake.some(s => s.x === nx && s.y === ny) || apples.some(a => a.x === nx && a.y === ny));
+      walls.push({ x: nx, y: ny });
+    }
+  }
+
+  if (!checkForBan()) {
+      initFromStorage();
+      if(localStorage.getItem('awaiting_perdon_check') === 'true'){
+          localStorage.removeItem('awaiting_perdon_check');
+          startDizzyMode();
+      }
+  }
+})();
+</script>
+</body>
+</html>

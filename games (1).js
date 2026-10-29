@@ -1,0 +1,62 @@
+// Catálogo de juegos. Para añadir uno nuevo:
+// 1) crea la carpeta games/<id>/ con su index.html
+// 2) añade un objeto a esta lista. Nada más.
+window.GAMES = [
+  {
+    id: 'fuga-3d',
+    name: 'FUGA 3D',
+    emoji: '🚔',
+    tags: ['3D', 'Conducción', 'Acción'],
+    desc: 'Huye de la policía, helicópteros, tanques y hasta Godzilla. Torreta, nitro, tráfico, power-ups, 10 modos, coches y skins.',
+    controls: 'W/S acelerar · ←/→ girar · A / clic torreta · Shift nitro · Espacio freno',
+    colors: ['#ff3b5c', '#ffc53a'],
+    badge: 'Destacado'
+  },
+  {
+    id: 'orbe-runner',
+    name: 'Orbe Runner 3D',
+    emoji: '🔶',
+    tags: ['3D', 'Plataformas'],
+    desc: 'Salta entre islas flotantes, recoge monedas, pisa enemigos y llega al portal sin caer a la lava.',
+    controls: 'WASD mover · Espacio saltar (doble) · Shift dash · Q/E o arrastrar: cámara',
+    colors: ['#ff7a1a', '#ffd400']
+  },
+  {
+    id: 'demolicion-3d',
+    name: 'Demolición 3D',
+    emoji: '💥',
+    tags: ['3D', 'Físicas', 'Puzles'],
+    desc: 'Derriba las estructuras con tu cañón y destruye todas las bolas rojas. Munición normal, pesada y bombas.',
+    controls: 'Ratón apuntar · mantén clic para cargar y suelta · 1/2/3 munición',
+    colors: ['#ff5a1f', '#8fcfff']
+  },
+  {
+    id: 'pelotation',
+    name: 'Pelotation',
+    emoji: '🧱',
+    tags: ['3D', 'Disparos', 'Físicas'],
+    desc: 'Dispara en primera persona y derriba todas las cajas con físicas realistas.',
+    controls: 'WASD mover · ratón mirar · clic/Espacio disparar · R reiniciar',
+    colors: ['#3a8dde', '#87b5e0']
+  },
+  {
+    id: 'snake',
+    name: 'Snake 2025',
+    emoji: '🐍',
+    tags: ['2D', 'Arcade'],
+    desc: 'El clásico de la serpiente con tienda, oro y mejoras.',
+    controls: 'Flechas / WASD o deslizar el dedo',
+    img: 'snake-icono.png',
+    colors: ['#4CAF50', '#1b5e20']
+  },
+  {
+    id: 'survival-shooter',
+    name: 'Survival Shooter',
+    emoji: '🔫',
+    tags: ['2D', 'Disparos', 'Supervivencia'],
+    desc: 'Sobrevive a oleadas de enemigos y jefes, sube de nivel y mejora tu equipo en la tienda.',
+    controls: 'Mando o teclado · Q bomba · E ataque cruz · C cofre · L cofre legendario',
+    img: 'survival-logo.png',
+    colors: ['#7b2cff', '#00e5ff']
+  }
+];

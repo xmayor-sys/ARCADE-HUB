@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Demolición 3D</title>
+<style>
+:root{--bg:#cfe8ff;--fg:#10223a;--panel:rgba(255,255,255,.85);--accent:#ff5a1f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1626;--fg:#e8f1ff;--panel:rgba(16,28,48,.85)}}
+:root[data-theme="dark"]{--bg:#0d1626;--fg:#e8f1ff;--panel:rgba(16,28,48,.85)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;touch-action:none;user-select:none}
+canvas{display:block;width:100%;height:100%}
+.bar{position:fixed;left:0;right:0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;pointer-events:none}
+#top{top:calc(10px + env(safe-area-inset-top,0px))}
+#bot{bottom:calc(14px + env(safe-area-inset-bottom,0px));align-items:center}
+.chip{background:var(--panel);padding:6px 12px;border-radius:999px;font-weight:700;font-size:15px;backdrop-filter:blur(6px)}
+.am{pointer-events:auto;cursor:pointer;border:2px solid transparent;color:var(--fg)}
+.am.sel{border-color:var(--accent)}
+.am.zero{opacity:.35}
+#pw{width:160px;height:12px;background:var(--panel);border-radius:8px;overflow:hidden}
+#pf{height:100%;width:0;background:linear-gradient(90deg,#3ddc84,#ffd400,#ff3b30)}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+#box{background:var(--panel);padding:26px 30px;border-radius:18px;max-width:390px;text-align:center;backdrop-filter:blur(8px)}
+#box h1{margin:0 0 8px;font-size:28px}#box p{margin:6px 0;font-size:14px;line-height:1.5}
+button#go{margin-top:12px;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 24px;font-size:16px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="bar" id="top"><div class="chip" id="hn"></div><div class="chip" id="hs"></div><div class="chip" id="ht"></div></div>
+<div class="bar" id="bot"><div class="chip am" id="a0"></div><div class="chip am" id="a1"></div><div class="chip am" id="a2"></div><div id="pw"><div id="pf"></div></div></div>
+<div id="ov"><div id="box">
+<h1 id="t">💥 Demolición 3D</h1>
+<p id="m">Destruye todas las bolas rojas 🔴 derribando las estructuras con tu cañón.</p>
+<p><b>Mueve el ratón</b> para apuntar · <b>Mantén click</b> para cargar potencia y <b>suelta</b> para disparar<br><b>1 / 2 / 3</b> cambia de munición</p>
+<p>⚪ Normal · ⚫ Pesada (mucha masa) · 💥 Bomba (explota al impactar y empuja todo)</p>
+<button id="go">Jugar</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const R=new THREE.WebGLRenderer({canvas:$('c'),antialias:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;
+const S=new THREE.Scene();S.background=new THREE.Color(0x8fcfff);S.fog=new THREE.Fog(0x8fcfff,40,140);
+const cam=new THREE.PerspectiveCamera(60,1,.1,300);
+function rs(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',rs);rs();
+S.add(new THREE.HemisphereLight(0xffffff,0x557766,.85));
+const sun=new THREE.DirectionalLight(0xffffff,.9);sun.position.set(15,30,20);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);const sc=sun.shadow.camera;sc.left=sc.bottom=-35;sc.right=sc.top=35;sc.far=100;S.add(sun);
+const gm=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x5fae5f,roughness:1}));
+gm.rotation.x=-Math.PI/2;gm.receiveShadow=true;S.add(gm);
+const grid=new THREE.GridHelper(300,150,0x3d7d3d,0x4f994f);grid.position.y=.01;S.add(grid);
+
+// Física
+const W=new CANNON.World();W.gravity.set(0,-9.82,0);W.solver.iterations=14;W.allowSleep=true;
+W.defaultContactMaterial.friction=.55;W.defaultContactMaterial.restitution=.08;
+const gb=new CANNON.Body({mass:0});gb.addShape(new CANNON.Plane());gb.quaternion.setFromEuler(-Math.PI/2,0,0);W.addBody(gb);
+
+// Cañón
+const CP=new THREE.Vector3(0,.9,12);
+const cg=new THREE.Group();cg.position.copy(CP);cg.rotation.order='YXZ';S.add(cg);
+const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.45,.6,2.6,16).rotateX(-Math.PI/2).translate(0,0,-1.1),new THREE.MeshStandardMaterial({color:0x34495e,metalness:.5,roughness:.4}));
+barrel.castShadow=true;cg.add(barrel);
+const base=new THREE.Mesh(new THREE.CylinderGeometry(1,1.2,.8,20),new THREE.MeshStandardMaterial({color:0x7f8c8d}));base.position.copy(CP).setY(.4);base.castShadow=true;S.add(base);
+const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(45*3),3));
+const prev=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffffff,size:.22}));prev.frustumCulled=false;S.add(prev);
+
+let objs=[],projs=[],parts=[],killQ=[],boomQ=[];
+let state='menu',level=1,score=0,yaw=0,pitch=.5,charging=false,cT=0,power=.5,sel=0,ammo=[5,2,1],lastShot=0,settled=false,shake=0,now=0;
+let AC;function beep(f,d=.1,ty='square',v=.05){try{AC=AC||new AudioContext();const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+const pgeo=new THREE.SphereGeometry(.12,6,6);
+function burst(p,col,n=12,sp=7){for(let i=0;i<n;i++){const m=new THREE.Mesh(pgeo,new THREE.MeshBasicMaterial({color:col}));m.position.copy(p);S.add(m);parts.push({m,v:new THREE.Vector3((Math.random()-.5)*sp,Math.random()*sp,(Math.random()-.5)*sp),l:.8})}}
+
+function reg(b,m,target){
+ m.castShadow=m.receiveShadow=true;W.addBody(b);S.add(m);
+ const o={b,m,target,dead:false};objs.push(o);
+ b.sleepSpeedLimit=.3;b.sleepTimeLimit=.6;
+ b.addEventListener('collide',e=>{if(target&&settled&&e.contact.getImpactVelocityAlongNormal()>5)killQ.push(o)});
+}
+function block(x,y,z,w,h,d,col){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:col,roughness:.7}));
+ reg(new CANNON.Body({mass:w*h*d*1.2,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2)),position:new CANNON.Vec3(x,y,z)}),m,false);
+}
+function targetAt(x,y,z){
+ const m=new THREE.Mesh(new THREE.SphereGeometry(.5,20,14),new THREE.MeshStandardMaterial({color:0xe02020,emissive:0x550000,roughness:.3}));
+ reg(new CANNON.Body({mass:.8,shape:new CANNON.Sphere(.5),position:new CANNON.Vec3(x,y,z)}),m,true);
+}
+function tower(x,z,h,withT=true){
+ for(let i=0;i<h;i++)block(x,.5+i*1.02+.01,z,1,1,1,i%2?0xb08050:0x9aa0a6);
+ if(withT)targetAt(x,h*1.02+.55,z);
+}
+function clear(){for(const o of objs){W.removeBody(o.b);S.remove(o.m)}objs=[];for(const p of projs){W.removeBody(p.b);S.remove(p.m)}projs=[]}
+function build(){
+ clear();settled=false;const L=level;
+ const rows=3+Math.min(L,4),bw=1.3,bh=.8;
+ for(let r=0;r<rows;r++){const n=rows-r;for(let c=0;c<n;c++)block((c-(n-1)/2)*(bw+.03),bh/2+r*(bh+.02)+.01,-14,bw,bh,1.3,(r+c)%2?0xc9a27a:0x8d99a6)}
+ targetAt(0,rows*(bh+.02)+.55,-14);
+ const sx=rows*.7+1.6;targetAt(-sx,.5,-14);targetAt(sx,.5,-14);
+ if(L>=2)tower(-8,-11,4+L);
+ if(L>=3)tower(8,-17,3+L);
+ if(L>=4)for(let i=0;i<5;i++)for(let j=0;j<2;j++)block((i-2)*1.6,.5+j*1.02,-8,1.5,1,1,0x7a8b99);
+ if(L>=5)tower(-3,-20,8);
+ ammo=[5,2,L>=3?2:1];sel=0;lastShot=now;
+ setTimeout(()=>settled=true,1800);hud();
+}
+function kill(o){
+ if(o.dead)return;o.dead=true;W.removeBody(o.b);S.remove(o.m);
+ burst(o.m.position,0xff3030,18);beep(520,.2,'sine',.08);score+=100;
+}
+function hud(){
+ $('hn').textContent='Nivel '+level;$('hs').textContent='⭐ '+score;
+ $('ht').textContent='🔴 '+objs.filter(o=>o.target&&!o.dead).length;
+ ['⚪','⚫','💥'].forEach((e,i)=>{const a=$('a'+i);a.textContent=e+' ×'+ammo[i]+' ['+(i+1)+']';a.className='chip am'+(sel===i?' sel':'')+(ammo[i]?'':' zero')});
+}
+[0,1,2].forEach(i=>{$('a'+i).onpointerdown=e=>{e.stopPropagation();if(ammo[i]){sel=i;hud()}}});
+function aimDir(){return new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch))}
+function fire(){
+ const ty=sel;if(!ammo[ty])return;ammo[ty]--;lastShot=now;
+ const r=[.45,.6,.5][ty],mass=[4,18,5][ty],col=[0xf0f0f0,0x222222,0xff7a1a][ty];
+ const d=aimDir(),sp=10+power*28;
+ const m=new THREE.Mesh(new THREE.SphereGeometry(r,20,14),new THREE.MeshStandardMaterial({color:col,roughness:.4,metalness:ty===1?.7:.1,emissive:ty===2?0x662200:0}));
+ const b=new CANNON.Body({mass,shape:new CANNON.Sphere(r),position:new CANNON.Vec3(CP.x+d.x*2.4,CP.y+d.y*2.4,CP.z+d.z*2.4)});
+ b.velocity.set(d.x*sp,d.y*sp,d.z*sp);b.linearDamping=0;
+ m.castShadow=true;W.addBody(b);S.add(m);
+ const p={b,m,ty,t:0,done:false};projs.push(p);
+ if(ty===2)b.addEventListener('collide',e=>{if(!p.done&&e.contact.getImpactVelocityAlongNormal()>1.5){p.done=true;boomQ.push(p)}});
+ shake=.25;burst(new THREE.Vector3(CP.x+d.x*2.6,CP.y+d.y*2.6,CP.z+d.z*2.6),0xffcc66,8,4);beep(110,.25,'sawtooth',.09);hud();
+ if(!ammo[sel]){const n=ammo.findIndex(a=>a>0);if(n>=0){sel=n;hud()}}
+}
+function explode(p){
+ p.done=true;const c=p.b.position,Rr=6;
+ for(const o of objs){if(o.dead)continue;
+  const dx=o.b.position.x-c.x,dy=o.b.position.y-c.y,dz=o.b.position.z-c.z,dist=Math.hypot(dx,dy,dz);
+  if(dist<Rr){const k=(1-dist/Rr)*o.b.mass*16/Math.max(dist,.5);o.b.wakeUp();o.b.applyImpulse(new CANNON.Vec3(dx*k,dy*k+o.b.mass*3*(1-dist/Rr),dz*k),o.b.position);
+   if(o.target&&dist<3.5)killQ.push(o)}}
+ burst(new THREE.Vector3(c.x,c.y,c.z),0xff7a1a,40,12);shake=.8;beep(70,.5,'sawtooth',.12);
+ W.removeBody(p.b);S.remove(p.m);p.gone=true;
+}
+// Input
+addEventListener('pointermove',e=>{yaw=(e.clientX/innerWidth-.5)*.8;pitch=Math.max(.05,Math.min(1.1,.05+(1-e.clientY/innerHeight)*.9))});
+$('c').addEventListener('pointerdown',e=>{if(state!=='play')return;if(e.pointerType!=='mouse'){yaw=(e.clientX/innerWidth-.5)*.8;pitch=Math.max(.05,Math.min(1.1,.05+(1-e.clientY/innerHeight)*.9))}
+ if(ammo.some(a=>a>0)){charging=true;cT=now}});
+addEventListener('pointerup',()=>{if(charging&&state==='play'){charging=false;fire();power=.5;$('pf').style.width='0'}else charging=false});
+addEventListener('keydown',e=>{const i=['Digit1','Digit2','Digit3'].indexOf(e.code);if(i>=0&&ammo[i]){sel=i;hud()}});
+$('go').onclick=()=>{if(state==='lost'||state==='menu'){if(state==='menu'){level=1;score=0}build()}else if(state==='won'){level++;build()}state='play';$('ov').style.display='none'};
+function show(t,m,b,s){state=s;$('t').textContent=t;$('m').textContent=m;$('go').textContent=b;$('ov').style.display='flex'}
+
+const dummy=new THREE.Vector3();let last=performance.now();
+function loop(ts){
+ requestAnimationFrame(loop);
+ const dt=Math.min((ts-last)/1000,.05);last=ts;now+=dt;
+ W.step(1/60,dt,3);
+ for(const o of objs)if(!o.dead){o.m.position.copy(o.b.position);o.m.quaternion.copy(o.b.quaternion)}
+ for(const p of projs){if(p.gone)continue;p.t+=dt;p.m.position.copy(p.b.position);p.m.quaternion.copy(p.b.quaternion);
+  if(p.ty===2&&!p.done&&p.t>4){p.done=true;boomQ.push(p)}
+  if(p.t>10&&!p.gone){p.gone=true;W.removeBody(p.b);S.remove(p.m)}}
+ projs=projs.filter(p=>!p.gone);
+ while(boomQ.length)explode(boomQ.pop());
+ while(killQ.length)kill(killQ.pop());
+ for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.l-=dt;q.v.y-=14*dt;q.m.position.addScaledVector(q.v,dt);q.m.scale.setScalar(Math.max(q.l,.01)/.8);if(q.l<=0){S.remove(q.m);parts.splice(i,1)}}
+ if(state==='play'){
+  if(charging){power=Math.min(1,.15+(now-cT)/1.2);$('pf').style.width=(power*100)+'%'}
+  hud();
+  const left=objs.filter(o=>o.target&&!o.dead).length;
+  if(left===0&&settled){const b=ammo.reduce((a,c)=>a+c,0)*50;score+=b;hud();show('🏆 ¡Nivel '+level+' superado!','Bonus por munición: +'+b+'. Puntos: '+score,'Siguiente nivel','won');beep(800,.4,'sine',.1)}
+  else if(!ammo.some(a=>a>0)&&now-lastShot>6&&left>0)show('💀 Sin munición','Quedaban '+left+' objetivos. Puntos: '+score,'Reintentar nivel','lost');
+ }
+ // cañón y trayectoria
+ cg.rotation.y=-yaw;cg.rotation.x=pitch;
+ const d=aimDir(),sp=10+(charging?power:.5)*28,pa=pg.attributes.position;let n=0;
+ const sx=CP.x+d.x*2.4,sy=CP.y+d.y*2.4,sz=CP.z+d.z*2.4;
+ for(let i=0;i<45;i++){const t=i*.09,y=sy+d.y*sp*t-4.91*t*t;if(y<0)break;pa.setXYZ(i,sx+d.x*sp*t,y,sz+d.z*sp*t);n++}
+ pg.setDrawRange(0,n);pa.needsUpdate=true;prev.visible=state==='play';
+ shake*=.9;
+ cam.position.set(yaw*8+(Math.random()-.5)*shake,5.5+(Math.random()-.5)*shake,19);
+ cam.lookAt(yaw*6,2.5,-8);
+ R.render(S,cam);
+}
+build();hud();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
